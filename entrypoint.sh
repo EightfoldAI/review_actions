@@ -54,7 +54,7 @@ for label in $labels; do
 done
 
 if [[ "$already_needs_ci_lite" == false ]]; then
-  status=$(curl -sSL -H "${AUTH_HEADER}" -H "${API_HEADER}" -H "Content-Type: application/json" "${URI}/repos/${GITHUB_REPOSITORY}/statuses/${sha}" |  jq -r '.[] | select(.context=="Requisites") | .state' | head -1)
+  status=$(curl -sSL -H "${AUTH_HEADER}" -H "${API_HEADER}" -H "Content-Type: application/json" "${URI}/repos/${GITHUB_REPOSITORY}/statuses/${sha}" |  jq -r '.[] | select(.context=="Requisites lite") | .state' | head -1)
   if [[ $status != "success" ]]; then
     echo "Adding label needs_ci:lite"
     add_label "needs_ci:lite"
