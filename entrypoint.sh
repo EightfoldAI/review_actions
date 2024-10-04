@@ -41,11 +41,16 @@ labels=$(jq --raw-output .pull_request.labels[].name "$GITHUB_EVENT_PATH")
 sha=$(jq --raw-output .pull_request.head.sha "$GITHUB_EVENT_PATH")
 
 already_needs_ci_lite=false
+already_needs_ci=false
 
+# Check for both needs_ci:lite and needs_ci labels
 for label in $labels; do
   case $label in
     needs_ci:lite)
       already_needs_ci_lite=true
+      ;;
+    needs_ci)
+      already_needs_ci=true
       ;;
     *)
       echo "Unknown label $label"
@@ -53,10 +58,22 @@ for label in $labels; do
   esac
 done
 
+statuses=$(curl -sSL -H "${AUTH_HEADER}" -H "${API_HEADER}" -H "Content-Type: application/json" "${URI}/repos/${GITHUB_REPOSITORY}/statuses/${sha}")
+
+# Handle needs_ci:lite label
 if [[ "$already_needs_ci_lite" == false ]]; then
-  status=$(curl -sSL -H "${AUTH_HEADER}" -H "${API_HEADER}" -H "Content-Type: application/json" "${URI}/repos/${GITHUB_REPOSITORY}/statuses/${sha}" |  jq -r '.[] | select(.context=="Requisites lite") | .state' | head -1)
-  if [[ $status != "success" ]]; then
+  status_lite=$(echo "$statuses" | jq -r '.[] | select(.context=="Requisites lite") | .state' | head -1)
+  if [[ $status_lite != "success" ]]; then
     echo "Adding label needs_ci:lite"
     add_label "needs_ci:lite"
+  fi
+fi
+
+# Handle needs_ci label
+if [[ "$already_needs_ci" == false ]]; then
+  status_ci=$(echo "$statuses" | jq -r '.[] | select(.context=="Requisites") | .state' | head -1)
+  if [[ $status_ci != "success" ]]; then
+    echo "Adding label needs_ci"
+    add_label "needs_ci"
   fi
 fi
