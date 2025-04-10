@@ -92,3 +92,5 @@ if [[ "$already_needs_alt_ci" == false ]]; then
     add_label "needs_ci:${alt_python_version}"
   fi
 fi
+
+# TODO: Handle needs_ci:alt:lite label
