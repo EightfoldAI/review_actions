@@ -42,6 +42,8 @@ sha=$(jq --raw-output .pull_request.head.sha "$GITHUB_EVENT_PATH")
 
 already_needs_ci_lite=false
 already_needs_ci=false
+already_needs_alt_ci=false
+alt_python_version=":3.13"
 
 # Check for both needs_ci:lite and needs_ci labels
 for label in $labels; do
@@ -51,6 +53,9 @@ for label in $labels; do
       ;;
     needs_ci)
       already_needs_ci=true
+      ;;
+    "needs_ci${alt_python_version}")
+      already_needs_alt_ci=true
       ;;
     *)
       echo "Unknown label $label"
@@ -75,5 +80,14 @@ if [[ "$already_needs_ci" == false ]]; then
   if [[ $status_ci != "success" ]]; then
     echo "Adding label needs_ci"
     add_label "needs_ci"
+  fi
+fi
+
+# Handle needs_ci:alt label
+if [[ "$already_needs_alt_ci" == false ]]; then
+  status_alt_ci=$(echo "$statuses" | jq -r '.[] | select(.context=="Requisites") | .state' | head -1)
+  if [[ $status_alt_ci != "success" ]]; then
+    echo "Adding label needs_ci${alt_python_version}"
+    add_label "needs_ci${alt_python_version}"
   fi
 fi
