@@ -42,6 +42,9 @@ sha=$(jq --raw-output .pull_request.head.sha "$GITHUB_EVENT_PATH")
 
 already_needs_ci_lite=false
 already_needs_ci=false
+already_needs_alt_ci=false
+curr_python_version="3.11"
+alt_python_version="3.13"
 
 # Check for both needs_ci:lite and needs_ci labels
 for label in $labels; do
@@ -51,6 +54,9 @@ for label in $labels; do
       ;;
     needs_ci)
       already_needs_ci=true
+      ;;
+    "needs_ci:${alt_python_version}")
+      already_needs_alt_ci=true
       ;;
     *)
       echo "Unknown label $label"
@@ -62,7 +68,7 @@ statuses=$(curl -sSL -H "${AUTH_HEADER}" -H "${API_HEADER}" -H "Content-Type: ap
 
 # Handle needs_ci:lite label
 if [[ "$already_needs_ci_lite" == false ]]; then
-  status_lite=$(echo "$statuses" | jq -r '.[] | select(.context=="Requisites lite") | .state' | head -1)
+  status_lite=$(echo "$statuses" | jq -r '.[] | select(.context=="Requisites (Python '"${curr_python_version}"') lite") | .state' | head -1)
   if [[ $status_lite != "success" ]]; then
     echo "Adding label needs_ci:lite"
     add_label "needs_ci:lite"
@@ -71,9 +77,20 @@ fi
 
 # Handle needs_ci label
 if [[ "$already_needs_ci" == false ]]; then
-  status_ci=$(echo "$statuses" | jq -r '.[] | select(.context=="Requisites") | .state' | head -1)
+  status_ci=$(echo "$statuses" | jq -r '.[] | select(.context=="Requisites (Python '"${curr_python_version}"')") | .state' | head -1)
   if [[ $status_ci != "success" ]]; then
     echo "Adding label needs_ci"
     add_label "needs_ci"
   fi
 fi
+
+# Handle needs_ci:alt label
+if [[ "$already_needs_alt_ci" == false ]]; then
+  status_alt_ci=$(echo "$statuses" | jq -r '.[] | select(.context=="Requisites (Python '"${alt_python_version}"')") | .state' | head -1)
+  if [[ $status_alt_ci != "success" ]]; then
+    echo "Adding label needs_ci:${alt_python_version}"
+    add_label "needs_ci:${alt_python_version}"
+  fi
+fi
+
+# TODO: Handle needs_ci:alt:lite label
