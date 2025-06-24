@@ -43,7 +43,7 @@ sha=$(jq --raw-output .pull_request.head.sha "$GITHUB_EVENT_PATH")
 already_needs_ci_lite=false
 already_needs_ci=false
 already_needs_alt_ci=false
-curr_python_version="3.11"
+curr_python_version="3.13"
 alt_python_version="3.13"
 
 # Check for both needs_ci:lite and needs_ci labels
@@ -85,7 +85,7 @@ if [[ "$already_needs_ci" == false ]]; then
 fi
 
 # Handle needs_ci:alt label
-if [[ "$already_needs_alt_ci" == false ]]; then
+if [[ "$already_needs_alt_ci" == false && "$curr_python_version" != "$alt_python_version" ]]; then
   status_alt_ci=$(echo "$statuses" | jq -r '.[] | select(.context=="Requisites (Python '"${alt_python_version}"')") | .state' | head -1)
   if [[ $status_alt_ci != "success" ]]; then
     echo "Adding label needs_ci:${alt_python_version}"
