@@ -42,7 +42,7 @@ AUTH_HEADER="Authorization: token ${GITHUB_TOKEN}"
 # workflow. A label added with GITHUB_TOKEN starts no workflow, so it is started with
 # workflow_dispatch, which GITHUB_TOKEN may trigger (needs `actions: write`). Never fails
 # the action.
-k8s_request() {  # k8s_request <workflow file>: start a CI k8s run of this PR
+ci_k8s_request() {  # ci_k8s_request <workflow file>: start a CI k8s run of this PR
   [[ "${CI_K8S_TRIGGER:-false}" == "true" ]] || return 0
   local ref
   ref=$(jq -r '.repository.default_branch // "master"' "$GITHUB_EVENT_PATH")
@@ -89,7 +89,7 @@ if [[ "$already_needs_ci_lite" == false ]]; then
   if [[ $status_lite != "success" ]]; then
     echo "Adding label needs_ci:lite"
     add_label "needs_ci:lite"
-    k8s_request "ci_k8s_lite.yml"
+    ci_k8s_request "ci_k8s_lite.yml"
   fi
 fi
 
@@ -99,7 +99,7 @@ if [[ "$already_needs_ci" == false ]]; then
   if [[ $status_ci != "success" ]]; then
     echo "Adding label needs_ci"
     add_label "needs_ci"
-    k8s_request "ci_k8s_full.yml"
+    ci_k8s_request "ci_k8s_full.yml"
   fi
 fi
 
