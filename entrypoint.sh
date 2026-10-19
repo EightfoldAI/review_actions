@@ -39,8 +39,8 @@ AUTH_HEADER="Authorization: token ${GITHUB_TOKEN}"
 # --- Which CI to request ---------------------------------------------------------------
 # Two switches, "true" or "false", passed in by the calling workflow from repository
 # variables:
-#   CI_FLEET_TRIGGER  the fleet CI's labels: needs_ci, needs_ci:lite. Unset = true.
-#   CI_K8S_TRIGGER    CI k8s's labels:       ci_k8s, ci_k8s:lite.     Unset = false.
+#   CI_FLEET_TRIGGER  the fleet CI: its labels, needs_ci and needs_ci:lite. Unset = true.
+#   CI_K8S_TRIGGER    CI k8s: its workflows, started with workflow_dispatch.  Unset = false.
 fleet_on() { [[ "${CI_FLEET_TRIGGER:-true}" == "true" ]]; }
 k8s_on() { [[ "${CI_K8S_TRIGGER:-false}" == "true" ]]; }
 
@@ -69,15 +69,12 @@ dispatch() {  # dispatch <workflow file> <inputs json>
     "${URI}/repos/${GITHUB_REPOSITORY}/actions/workflows/${1}/dispatches" || true
 }
 
-# k8s_request <label> <workflow file>: add a CI k8s request label and start its run,
-# unless the PR already has it (a run is in flight; nothing to restart).
+# k8s_request <workflow file>: start a CI k8s run of this PR. CI k8s is requested exactly
+# when the fleet's needs_ci label would be, and adds no label of its own.
 k8s_request() {
   k8s_on || return 0
-  has_label "$1" && { echo "CI k8s: $1 already on"; return 0; }
   same_repo_pr || { echo "CI k8s: not a same-repo PR, skipping $1"; return 0; }
-  add_label "$1" > /dev/null || true
-  labels="${labels}"$'\n'"$1"
-  dispatch "$2" "{\"pr\":\"${number}\"}"
+  dispatch "$1" "{\"pr\":\"${number}\"}"
 }
 # ----------------------------------------------------------------------------------------
 
@@ -111,24 +108,24 @@ done
 
 statuses=$(curl -sSL -H "${AUTH_HEADER}" -H "${API_HEADER}" -H "Content-Type: application/json" "${URI}/repos/${GITHUB_REPOSITORY}/statuses/${sha}")
 
-# Handle needs_ci:lite label (and CI k8s's ci_k8s:lite, by the same rule)
+# Handle needs_ci:lite label (and CI k8s lite, by the same rule)
 status_lite=$(echo "$statuses" | jq -r '.[] | select(.context=="Requisites (Python '"${curr_python_version}"') lite") | .state' | head -1)
-if [[ $status_lite != "success" ]]; then
-  if [[ "$already_needs_ci_lite" == false ]] && fleet_on; then
+if [[ $status_lite != "success" && "$already_needs_ci_lite" == false ]]; then
+  if fleet_on; then
     echo "Adding label needs_ci:lite"
     add_label "needs_ci:lite"
   fi
-  k8s_request "ci_k8s:lite" "ci_k8s_lite.yml"
+  k8s_request "ci_k8s_lite.yml"
 fi
 
-# Handle needs_ci label (and CI k8s's ci_k8s, by the same rule)
+# Handle needs_ci label (and CI k8s full, by the same rule)
 status_ci=$(echo "$statuses" | jq -r '.[] | select(.context=="Requisites (Python '"${curr_python_version}"')") | .state' | head -1)
-if [[ $status_ci != "success" ]]; then
-  if [[ "$already_needs_ci" == false ]] && fleet_on; then
+if [[ $status_ci != "success" && "$already_needs_ci" == false ]]; then
+  if fleet_on; then
     echo "Adding label needs_ci"
     add_label "needs_ci"
   fi
-  k8s_request "ci_k8s" "ci_k8s_full.yml"
+  k8s_request "ci_k8s_full.yml"
 fi
 
 # Handle needs_ci:alt label
